@@ -167,7 +167,6 @@ async function init() {
       highlightActiveLine(),
       highlightSelectionMatches(),
       markdown({ base: markdownLanguage, codeLanguages: languages }),
-      syntaxHighlighting(hybridHighlightStyle),
       hybridTheme,
       isDark ? darkColors : lightColors,
       EditorView.lineWrapping,
