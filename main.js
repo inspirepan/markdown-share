@@ -1,13 +1,13 @@
-import { EditorView, minimalSetup } from "https://esm.sh/codemirror@6.0.1";
-import { EditorState, Compartment } from "https://esm.sh/@codemirror/state@6.4.0";
-import { markdown, markdownLanguage } from "https://esm.sh/@codemirror/lang-markdown@6.2.0";
-import { languages } from "https://esm.sh/@codemirror/language-data@6.3.1";
-import { syntaxHighlighting, HighlightStyle, defaultHighlightStyle, bracketMatching } from "https://esm.sh/@codemirror/language@6.10.0";
+import { EditorView, minimalSetup } from "https://esm.sh/codemirror@6.0.1?external=@codemirror/state,@lezer/highlight,@codemirror/view,@codemirror/language";
+import { EditorState } from "https://esm.sh/@codemirror/state@6.4.1";
+import { markdown, markdownLanguage } from "https://esm.sh/@codemirror/lang-markdown@6.2.0?external=@codemirror/state,@codemirror/language,@lezer/common,@codemirror/view,@lezer/highlight";
+import { languages } from "https://esm.sh/@codemirror/language-data@6.3.1?external=@codemirror/state,@codemirror/language";
+import { syntaxHighlighting, HighlightStyle, bracketMatching } from "https://esm.sh/@codemirror/language@6.10.1?external=@codemirror/state,@codemirror/view,@lezer/highlight,@lezer/common";
 import { tags } from "https://esm.sh/@lezer/highlight@1.2.0";
-import { keymap, highlightActiveLine, drawSelection, dropCursor } from "https://esm.sh/@codemirror/view@6.23.0";
-import { defaultKeymap, history, historyKeymap } from "https://esm.sh/@codemirror/commands@6.3.3";
-import { searchKeymap, highlightSelectionMatches } from "https://esm.sh/@codemirror/search@6.5.5";
-import { closeBrackets, autocompletion, closeBracketsKeymap, completionKeymap } from "https://esm.sh/@codemirror/autocomplete@6.12.0";
+import { keymap, highlightActiveLine, drawSelection, dropCursor } from "https://esm.sh/@codemirror/view@6.26.0?external=@codemirror/state,@codemirror/language,@lezer/highlight";
+import { defaultKeymap, history, historyKeymap } from "https://esm.sh/@codemirror/commands@6.5.0?external=@codemirror/state,@codemirror/view,@codemirror/language";
+import { searchKeymap } from "https://esm.sh/@codemirror/search@6.5.6?external=@codemirror/state,@codemirror/view";
+import { closeBrackets, autocompletion, closeBracketsKeymap, completionKeymap } from "https://esm.sh/@codemirror/autocomplete@6.16.0?external=@codemirror/state,@codemirror/view,@codemirror/language";
 
 // --- URL & Compression Logic (Adapted from Reference) ---
 
