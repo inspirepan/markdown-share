@@ -72,7 +72,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     styleActiveLine: true,
     indentUnit: 4,
     tabSize: 4,
-    inputStyle: "contenteditable", // Better accessibility and IME support
+    // NOTE: IME (e.g. Chinese/Japanese) can be flaky in some browsers with
+    // CodeMirror 5's contenteditable input. Prefer textarea for stability.
+    inputStyle: "textarea",
     spellcheck: true
   });
 
@@ -85,6 +87,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // State Management
   let saveTimer = null;
+  let isComposing = false;
+
+  function scheduleUpdateState() {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(updateState, 500);
+  }
+
+  // Avoid doing expensive work / URL updates while the user is composing text via IME.
+  // This reduces issues like unexpected "confirm" or duplicated lines during composition.
+  const inputField = editor.getInputField();
+  inputField.addEventListener('compositionstart', () => {
+    isComposing = true;
+    if (saveTimer) clearTimeout(saveTimer);
+  });
+  inputField.addEventListener('compositionend', () => {
+    isComposing = false;
+    scheduleUpdateState();
+  });
 
   async function updateState() {
     const content = editor.getValue();
@@ -97,13 +117,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         const hash = await compress(content);
         if (hash) {
-            window.history.replaceState(null, null, "#" + hash);
+            const nextHash = "#" + hash;
+            if (location.hash !== nextHash) {
+              window.history.replaceState(null, null, nextHash);
+            }
         }
       } catch (e) {
         console.error("Compression error", e);
       }
     } else {
-      window.history.replaceState(null, null, location.pathname);
+      if (location.hash) {
+        window.history.replaceState(null, null, location.pathname);
+      }
     }
 
     // 3. Update Title
@@ -117,9 +142,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  editor.on("change", () => {
-    if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(updateState, 500);
+  editor.on("change", (_cm, changeObj) => {
+    // CodeMirror marks composition changes as "*compose" in some browsers.
+    if (isComposing || changeObj?.origin === "*compose") return;
+    scheduleUpdateState();
   });
 
   // Hash Navigation Handler
