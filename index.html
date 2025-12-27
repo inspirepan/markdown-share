@@ -3,102 +3,84 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#1e1e1e" media="(prefers-color-scheme: dark)">
   <title>Markdown Editor</title>
   <meta name="description" content="A minimalist, shareable Markdown editor that saves content in the URL.">
-  <link rel="stylesheet" href="style.css">
-  <script type="importmap">
-  {
-    "imports": {
-      "@codemirror/state": "https://esm.sh/@codemirror/state@6.4.1",
-      "@codemirror/view": "https://esm.sh/@codemirror/view@6.26.0?external=@codemirror/state",
-      "@codemirror/language": "https://esm.sh/@codemirror/language@6.10.1?external=@codemirror/state,@codemirror/view,@lezer/common,@lezer/highlight",
-      "@codemirror/commands": "https://esm.sh/@codemirror/commands@6.5.0?external=@codemirror/state,@codemirror/view,@codemirror/language",
-      "@codemirror/search": "https://esm.sh/@codemirror/search@6.5.6?external=@codemirror/state,@codemirror/view",
-      "@codemirror/autocomplete": "https://esm.sh/@codemirror/autocomplete@6.16.0?external=@codemirror/state,@codemirror/view,@codemirror/language,@lezer/common",
-      "@codemirror/lang-markdown": "https://esm.sh/@codemirror/lang-markdown@6.2.0?external=@codemirror/state,@codemirror/view,@codemirror/language,@lezer/common,@lezer/highlight",
-      "@codemirror/language-data": "https://esm.sh/@codemirror/language-data@6.3.1?external=@codemirror/state,@codemirror/language",
-      "@lezer/highlight": "https://esm.sh/@lezer/highlight@1.2.0",
-      "@lezer/common": "https://esm.sh/@lezer/common@1.2.1"
-    }
-  }
-  </script>
+  
+  <!-- CodeMirror 5 CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+  <!-- Themes -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/neo.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/ayu-dark.min.css">
+  
   <style>
-    * {
-      box-sizing: border-box;
-      outline: none;
-    }
-    
-    body {
+    body, html {
       margin: 0;
       padding: 0;
-      height: 100vh;
-      width: 100vw;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      width: 100%;
+      height: 100%;
       overflow: hidden;
-      background-color: #fff;
+      background-color: #ffffff;
+      transition: background-color 0.3s;
     }
 
     #editor {
-      height: 100%;
       width: 100%;
-    }
-
-    /* Minimal adjustments for the editor container */
-    .cm-editor {
       height: 100%;
       font-size: 16px;
-    }
-    
-    .cm-scroller {
-      overflow: auto;
-      font-family: 'Menlo', 'Monaco', 'Courier New', monospace; 
       line-height: 1.6;
     }
 
-    /* Dark Mode Support via media query handled by CodeMirror theme mostly, but background here fixes flash */
+    /* CodeMirror Configuration */
+    .CodeMirror {
+      width: 100%;
+      height: 100%;
+      font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+      padding: 20px 5vw; /* Padding for the writing area */
+      box-sizing: border-box;
+      background: transparent;
+    }
+    
+    .CodeMirror-scroll {
+        padding-bottom: 50px;
+    }
+
+    /* Hybrid Mode Styling (Making headers look like headers) */
+    .cm-header-1 { font-size: 2.0em; line-height: 1.2; font-weight: bold; }
+    .cm-header-2 { font-size: 1.6em; line-height: 1.2; font-weight: bold; }
+    .cm-header-3 { font-size: 1.3em; line-height: 1.2; font-weight: bold; }
+    .cm-strong { font-weight: bold; }
+    .cm-em { font-style: italic; }
+    .cm-link { text-decoration: underline; opacity: 0.7; }
+    .cm-url { opacity: 0.5; }
+    .cm-quote { font-style: italic; color: #777; border-left: 4px solid #ddd; padding-left: 10px; }
+
+    /* Dark Mode Adjustments */
     @media (prefers-color-scheme: dark) {
       body {
-        background-color: #1e1e1e;
+        background-color: #0b0e14; /* Match ayu-dark bg */
       }
+      .cm-quote { border-left-color: #444; color: #999; }
     }
-  </style>
-  <style>
+    
+    /* Error Display */
     #error-display {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      background: #ffebee;
-      color: #c62828;
-      padding: 10px;
-      font-family: monospace;
-      z-index: 9999;
-      display: none;
-      border-bottom: 1px solid #c62828;
-      white-space: pre-wrap;
+      position: fixed; top: 0; left: 0; width: 100%;
+      background: #ffebee; color: #c62828; padding: 10px;
+      z-index: 9999; display: none;
     }
   </style>
 </head>
 <body>
   <div id="error-display"></div>
-  <script>
-    const errDisplay = document.getElementById('error-display');
-    function showError(msg) {
-      errDisplay.style.display = 'block';
-      errDisplay.textContent += 'Error: ' + msg + '\n';
-      console.error(msg);
-    }
-    window.onerror = function(msg, url, lineNo, columnNo, error) {
-      showError(msg + ' (' + url + ':' + lineNo + ')');
-      return false;
-    };
-    window.addEventListener('unhandledrejection', function(event) {
-      showError('Unhandled Promise Rejection: ' + event.reason);
-    });
-  </script>
   <div id="editor"></div>
-  <script type="module" src="main.js"></script>
+
+  <!-- Dependencies -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+
+  <!-- Main Logic -->
+  <script src="main.js"></script>
 </body>
 </html>

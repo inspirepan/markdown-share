@@ -1,13 +1,3 @@
-import { EditorView, keymap, highlightActiveLine, drawSelection, dropCursor, lineNumbers, highlightSpecialChars } from "@codemirror/view";
-import { EditorState } from "@codemirror/state";
-import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
-import { languages } from "@codemirror/language-data";
-import { syntaxHighlighting, HighlightStyle, bracketMatching, defaultHighlightStyle, indentOnInput } from "@codemirror/language";
-import { tags } from "@lezer/highlight";
-import { defaultKeymap, history as historyExtension, historyKeymap } from "@codemirror/commands";
-import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
-import { closeBrackets, autocompletion, closeBracketsKeymap, completionKeymap } from "@codemirror/autocomplete";
-
 // --- URL & Compression Logic ---
 
 function toBase64Url(u8) {
@@ -33,6 +23,9 @@ function fromBase64Url(str) {
 }
 
 async function compress(string) {
+  // Use generic error handling in case CompressionStream is missing (old browsers)
+  if (!window.CompressionStream) return null;
+  
   const byteArray = new TextEncoder().encode(string);
   const stream = new CompressionStream('deflate-raw');
   const writer = stream.writable.getWriter();
@@ -43,6 +36,8 @@ async function compress(string) {
 }
 
 async function decompress(b64) {
+  if (!window.DecompressionStream) return null;
+  
   try {
     const byteArray = fromBase64Url(b64);
     const stream = new DecompressionStream('deflate-raw');
@@ -52,80 +47,66 @@ async function decompress(b64) {
     const buffer = await new Response(stream.readable).arrayBuffer();
     return new TextDecoder().decode(buffer);
   } catch (err) {
-    console.warn("Decompression failed, maybe plain text?", err);
-    return "";
+    console.warn("Decompression failed:", err);
+    return null;
   }
 }
 
-// --- Editor Theme (Hybrid Mode) ---
-
-const hybridTheme = EditorView.theme({
-  "&": {
-    height: "100%",
-    backgroundColor: "transparent"
-  },
-  ".cm-content": {
-    caretColor: "currentColor",
-    padding: "20px 5vw",
-    maxWidth: "900px",
-    margin: "0 auto"
-  },
-  ".cm-line": {
-    padding: "2px 0"
-  },
-  "&.cm-focused": {
-    outline: "none"
-  }
-});
-
-const hybridHighlightStyle = HighlightStyle.define([
-  { tag: tags.heading1, fontSize: "2.2em", fontWeight: "bold", lineHeight: "1.2", margin: "1em 0", class: "cm-heading-1" },
-  { tag: tags.heading2, fontSize: "1.8em", fontWeight: "bold", lineHeight: "1.2", margin: "1em 0", class: "cm-heading-2" },
-  { tag: tags.heading3, fontSize: "1.4em", fontWeight: "bold", lineHeight: "1.2", margin: "1em 0", class: "cm-heading-3" },
-  { tag: tags.heading, fontWeight: "bold" },
-  { tag: tags.strong, fontWeight: "bold" },
-  { tag: tags.emphasis, fontStyle: "italic" },
-  { tag: tags.strikethrough, textDecoration: "line-through" },
-  { tag: tags.link, textDecoration: "underline", opacity: "0.7" },
-  { tag: tags.url, textDecoration: "underline", opacity: "0.5" },
-  { tag: tags.quote, fontStyle: "italic", opacity: "0.8", borderLeft: "4px solid currentColor", paddingLeft: "10px", marginLeft: "0" },
-  { tag: tags.monospace, fontFamily: "monospace", padding: "2px 4px", borderRadius: "3px", backgroundColor: "rgba(128,128,128,0.1)" },
-  { tag: tags.meta, opacity: "0.4" },
-  { tag: tags.keyword, color: "#d73a49" },
-  { tag: tags.string, color: "#032f62" },
-  { tag: tags.comment, color: "#6a737d", fontStyle: "italic" }
-]);
-
-const lightColors = EditorView.theme({
-  "&": { color: "#24292e", backgroundColor: "#ffffff" },
-  ".cm-content": { caretColor: "#24292e" },
-  ".cm-cursor": { borderLeftColor: "#24292e" }
-}, { dark: false });
-
-const darkColors = EditorView.theme({
-  "&": { color: "#c9d1d9", backgroundColor: "#0d1117" },
-  ".cm-content": { caretColor: "#c9d1d9" },
-  ".cm-cursor": { borderLeftColor: "#c9d1d9" },
-  ".cm-activeLine": { backgroundColor: "#161b22" },
-  ".cm-selectionMatch": { backgroundColor: "#3fb95040" }
-}, { dark: true });
-
 // --- App Logic ---
 
-const updateDispatch = async (view) => {
-  const content = view.state.doc.toString();
-  
-  if (window.saveTimer) clearTimeout(window.saveTimer);
-  window.saveTimer = setTimeout(async () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  const errorDisplay = document.getElementById('error-display');
+  window.onerror = (msg) => {
+    errorDisplay.style.display = 'block';
+    errorDisplay.textContent = 'Error: ' + msg;
+  };
+
+  const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+
+  // Initialize CodeMirror 5
+  const editor = CodeMirror(document.getElementById("editor"), {
+    mode: "markdown",
+    theme: isDark ? "ayu-dark" : "neo",
+    lineWrapping: true,
+    autoCloseBrackets: true,
+    styleActiveLine: true,
+    indentUnit: 4,
+    tabSize: 4,
+    inputStyle: "contenteditable", // Better accessibility and IME support
+    spellcheck: true
+  });
+
+  // Theme auto-switching
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener('change', e => {
+    const newIsDark = e.matches;
+    editor.setOption("theme", newIsDark ? "ayu-dark" : "neo");
+    document.body.style.backgroundColor = newIsDark ? "#0b0e14" : "#ffffff";
+  });
+
+  // State Management
+  let saveTimer = null;
+
+  async function updateState() {
+    const content = editor.getValue();
+    
+    // 1. Save to LocalStorage
     localStorage.setItem("markdown-content", content);
     
+    // 2. Save to URL Hash
     if (content.trim().length > 0) {
-      const hash = await compress(content);
-      window.history.replaceState(null, null, "#" + hash);
+      try {
+        const hash = await compress(content);
+        if (hash) {
+            window.history.replaceState(null, null, "#" + hash);
+        }
+      } catch (e) {
+        console.error("Compression error", e);
+      }
     } else {
       window.history.replaceState(null, null, location.pathname);
     }
-    
+
+    // 3. Update Title
     const firstLine = content.split('\n')[0].trim();
     if (firstLine.startsWith('# ')) {
         document.title = firstLine.substring(2);
@@ -134,76 +115,40 @@ const updateDispatch = async (view) => {
     } else {
         document.title = "Markdown Editor";
     }
-  }, 500);
-};
+  }
 
-async function init() {
-  let initialContent = "# Hello\n\nStart typing here...";
+  editor.on("change", () => {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(updateState, 500);
+  });
+
+  // Hash Navigation Handler
+  window.addEventListener('hashchange', async () => {
+    if (location.hash.length > 1) {
+        const urlContent = await decompress(location.hash.slice(1));
+        if (urlContent !== null && urlContent !== editor.getValue()) {
+            // Prevent triggering change event loop if possible, or just accept the update
+            const cursor = editor.getCursor();
+            editor.setValue(urlContent);
+            editor.setCursor(cursor);
+        }
+    }
+  });
+
+  // Initial Content Load
+  let initialContent = "# Hello World\n\nStart writing in Markdown...";
   
+  // 1. URL Hash
   if (location.hash.length > 1) {
     const dec = await decompress(location.hash.slice(1));
-    if (dec) initialContent = dec;
-  } else {
+    if (dec !== null) initialContent = dec;
+  } 
+  // 2. LocalStorage
+  else {
     const stored = localStorage.getItem("markdown-content");
     if (stored) initialContent = stored;
   }
 
-  const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-
-  // Manual setup instead of minimalSetup to ensure control over dependencies
-  const startState = EditorState.create({
-    doc: initialContent,
-    extensions: [
-      highlightSpecialChars(),
-      historyExtension(),
-      drawSelection(),
-      dropCursor(),
-      EditorState.allowMultipleSelections.of(true),
-      indentOnInput(),
-      syntaxHighlighting(defaultHighlightStyle, {fallback: true}),
-      bracketMatching(),
-      closeBrackets(),
-      autocompletion(),
-      highlightActiveLine(),
-      highlightSelectionMatches(),
-      markdown({ base: markdownLanguage, codeLanguages: languages }),
-      hybridTheme,
-      isDark ? darkColors : lightColors,
-      EditorView.lineWrapping,
-      keymap.of([
-        ...closeBracketsKeymap,
-        ...defaultKeymap,
-        ...searchKeymap,
-        ...historyKeymap,
-        ...completionKeymap
-      ]),
-      EditorView.updateListener.of((update) => {
-        if (update.docChanged) {
-          updateDispatch(update.view);
-        }
-      })
-    ]
-  });
-
-  const view = new EditorView({
-    state: startState,
-    parent: document.getElementById("editor")
-  });
-  
-  window.matchMedia("(prefers-color-scheme: dark)").addEventListener('change', e => {
-    location.reload(); 
-  });
-  
-  window.addEventListener('hashchange', async () => {
-    if (location.hash.length > 1) {
-        const urlContent = await decompress(location.hash.slice(1));
-        if (urlContent && urlContent !== view.state.doc.toString()) {
-            view.dispatch({
-                changes: {from: 0, to: view.state.doc.length, insert: urlContent}
-            });
-        }
-    }
-  });
-}
-
-init();
+  editor.setValue(initialContent);
+  editor.clearHistory(); // Don't want to undo to empty state immediately
+});
