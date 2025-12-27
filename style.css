@@ -1,0 +1,48 @@
+/* Global reset and font settings */
+:root {
+    --bg-color: #ffffff;
+    --text-color: #24292e;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg-color: #0d1117;
+        --text-color: #c9d1d9;
+    }
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    transition: background-color 0.3s ease;
+}
+
+/* Custom scrollbar for Webkit */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(128, 128, 128, 0.4);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(128, 128, 128, 0.6);
+}
+
+/* Print styles */
+@media print {
+    .cm-editor {
+        height: auto !important;
+        overflow: visible !important;
+    }
+    .cm-scroller {
+        overflow: visible !important;
+    }
+}
