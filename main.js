@@ -4,7 +4,7 @@ import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { syntaxHighlighting, HighlightStyle, bracketMatching, defaultHighlightStyle, indentOnInput } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
-import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import { defaultKeymap, history as historyExtension, historyKeymap } from "@codemirror/commands";
 import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
 import { closeBrackets, autocompletion, closeBracketsKeymap, completionKeymap } from "@codemirror/autocomplete";
 
@@ -121,9 +121,9 @@ const updateDispatch = async (view) => {
     
     if (content.trim().length > 0) {
       const hash = await compress(content);
-      history.replaceState(null, null, "#" + hash);
+      window.history.replaceState(null, null, "#" + hash);
     } else {
-      history.replaceState(null, null, location.pathname);
+      window.history.replaceState(null, null, location.pathname);
     }
     
     const firstLine = content.split('\n')[0].trim();
@@ -155,7 +155,7 @@ async function init() {
     doc: initialContent,
     extensions: [
       highlightSpecialChars(),
-      history(),
+      historyExtension(),
       drawSelection(),
       dropCursor(),
       EditorState.allowMultipleSelections.of(true),
