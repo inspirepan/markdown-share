@@ -7,6 +7,7 @@
   <meta name="theme-color" content="#1e1e1e" media="(prefers-color-scheme: dark)">
   <title>Markdown Editor</title>
   <meta name="description" content="A minimalist, shareable Markdown editor that saves content in the URL.">
+  <link rel="stylesheet" href="style.css">
   <style>
     * {
       box-sizing: border-box;
@@ -47,8 +48,40 @@
       }
     }
   </style>
+  <style>
+    #error-display {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      background: #ffebee;
+      color: #c62828;
+      padding: 10px;
+      font-family: monospace;
+      z-index: 9999;
+      display: none;
+      border-bottom: 1px solid #c62828;
+      white-space: pre-wrap;
+    }
+  </style>
 </head>
 <body>
+  <div id="error-display"></div>
+  <script>
+    const errDisplay = document.getElementById('error-display');
+    function showError(msg) {
+      errDisplay.style.display = 'block';
+      errDisplay.textContent += 'Error: ' + msg + '\n';
+      console.error(msg);
+    }
+    window.onerror = function(msg, url, lineNo, columnNo, error) {
+      showError(msg + ' (' + url + ':' + lineNo + ')');
+      return false;
+    };
+    window.addEventListener('unhandledrejection', function(event) {
+      showError('Unhandled Promise Rejection: ' + event.reason);
+    });
+  </script>
   <div id="editor"></div>
   <script type="module" src="main.js"></script>
 </body>
